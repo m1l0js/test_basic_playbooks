@@ -1,10 +1,13 @@
 ---
-- name: Install Nmap based on Linux distribution
-  hosts: all
-  become: true
+- name: Install Nmap on Debian-based systems
+  hosts: debian_servers  # Define a host group for Debian-based systems
+  become: true  # Use sudo for elevated privileges
   tasks:
-    - name: Install Nmap on Debian-based systems
+    - name: Update the APT package cache
+      apt:
+        update_cache: yes
+
+    - name: Install Nmap
       apt:
         name: nmap
         state: present
-      when: ansible_facts['os_family'] == "Debian"
