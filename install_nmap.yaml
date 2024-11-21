@@ -1,0 +1,32 @@
+---
+- name: Install Nmap based on Linux distribution
+  hosts: all
+  become: true
+  tasks:
+    - name: Install Nmap on Debian-based systems
+      apt:
+        name: nmap
+        state: present
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Install Nmap on RedHat-based systems
+      yum:
+        name: nmap
+        state: present
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Install Nmap on Oracle Linux
+      yum:
+        name: nmap
+        state: present
+      when: ansible_facts['distribution'] == "OracleLinux"
+
+    - name: Install Nmap on CentOS
+      yum:
+        name: nmap
+        state: present
+      when: ansible_facts['distribution'] == "CentOS"
+
+    - name: Install Nmap on FreeBSD
+      command: pkg install -y nmap
+      when: ansible_facts['os_family'] == "FreeBSD"
