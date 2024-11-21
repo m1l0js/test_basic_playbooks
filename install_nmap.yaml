@@ -1,13 +1,10 @@
 ---
-- name: Install Nmap on Debian-based systems
-  hosts: debian_servers  # Define a host group for Debian-based systems
-  become: true  # Use sudo for elevated privileges
+- name: Install Nmap
+  hosts: all
+  gather_facts: false  # Disabling fact gathering to speed up the playbook execution
+  become: true
   tasks:
-    - name: Update the APT package cache
-      apt:
-        update_cache: yes
+    - name: Install nmap
+      ansible.builtin.command:
+        cmd: sudo apt install nmap -y
 
-    - name: Install Nmap
-      apt:
-        name: nmap
-        state: present
