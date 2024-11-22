@@ -1,0 +1,68 @@
+---
+- name: Create user bos and add to appropriate admin group
+  hosts: all
+  become: true
+  vars:
+    username: bos
+    password: "{{ 'supertest' | password_hash('sha512') }}"
+  tasks:
+    - name: Install sudo if not present (Debian-based systems)
+      apt:
+        name: sudo
+        state: present
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Create user on all systems
+      user:
+        name: "{{ username }}"
+        password: "{{ password }}"
+        state: present
+        shell: /bin/bash
+
+    - name: Add user to sudo group (Debian-based systems)
+      user:
+        name: "{{ username }}"
+        groups: sudo
+        append: true
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Add user to wheel group (RedHat-based systems: CentOS, RHEL, Oracle)
+      user:
+        name: "{{ username }}"
+        groups: wheel
+        append: true
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Add user to wheel group (FreeBSD)
+      user:
+        name: "{{ username }}"
+        groups: wheel
+        append: true
+      when: ansible_facts['os_family'] == "FreeBSD"
+
+    - name: Ensure the wheel group has sudo privileges on RedHat-based systems
+      lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^%wheel'
+        line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Ensure the sudo group has sudo privileges on Debian-based systems
+      lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^%sudo'
+        line: '%sudo ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Ensure the wheel group has sudo privileges on FreeBSD
+      lineinfile:
+        path: /usr/local/etc/sudoers
+        state: present
+        regexp: '^%wheel'
+        line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+      when: ansible_facts['os_family'] == "FreeBSD"
