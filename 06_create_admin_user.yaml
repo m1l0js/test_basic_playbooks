@@ -26,7 +26,7 @@
         append: true
       when: ansible_facts['os_family'] == "Debian"
 
-    - name: Add user to wheel group (RedHat-based systems: CentOS, RHEL, Oracle)
+    - name: Add user to wheel group (RedHat-based systems CentOS, RHEL, Oracle)
       user:
         name: "{{ username }}"
         groups: wheel
