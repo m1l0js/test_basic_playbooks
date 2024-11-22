@@ -9,7 +9,7 @@
         name: 
           - nmap
           - apache2
-        state: latest
+        state: absent
         update_cache: yes
 
     - name: Remove packages not needed anymore
