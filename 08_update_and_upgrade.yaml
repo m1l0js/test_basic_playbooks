@@ -1,0 +1,27 @@
+---
+- name: Update and Upgrade Packages Based on Distribution
+  hosts: all
+  become: true
+  tasks:
+    # Update and Upgrade on Debian-based systems
+    - name: Update and upgrade packages on Debian-based systems
+      apt:
+        update_cache: yes
+        upgrade: full
+      when: ansible_facts['os_family'] == "Debian"
+
+    # Update and Upgrade on RedHat-based systems
+    - name: Update and upgrade packages on RedHat-based systems
+      yum:
+        name: "*"
+        state: latest
+      when: ansible_facts['os_family'] == "RedHat"
+
+    # Update and Upgrade on FreeBSD systems
+    - name: Update package metadata on FreeBSD systems
+      command: pkg update -f
+      when: ansible_facts['os_family'] == "FreeBSD"
+
+    - name: Upgrade installed packages on FreeBSD systems
+      command: pkg upgrade -y
+      when: ansible_facts['os_family'] == "FreeBSD"
