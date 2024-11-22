@@ -2,12 +2,19 @@
 - name: Install Nmap
   hosts: all
   become: true
-  become_user: sistema
+  become_method: sudo
   tasks:
     - name: Install nmap
       apt:
         name: 
           - nmap
           - apache2
+        state: latest
+        update_cache: yes
+
+    - name: Remove packages not needed anymore
+      apt:
+        autoremove: yes
+        
         
           
