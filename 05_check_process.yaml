@@ -1,0 +1,12 @@
+---
+- name: Check running processes
+  hosts: all
+  tasks:
+    - name: Check if a process is running
+      shell: pgrep -f "{{ process_name }}"
+      register: process_status
+      failed_when: process_status.rc != 0
+    - name: Debug process status
+      debug:
+        msg: "Process {{ process_name }} is running."
+      when: process_status.rc == 0
