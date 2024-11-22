@@ -1,0 +1,7 @@
+---
+- name: Install Nmap
+  hosts: all
+  become: true
+  tasks:
+    - name: Install nmap
+      command:  apt install nmap -y
