@@ -10,19 +10,22 @@ Welcome to **Test Basic Playbooks**, a collection of **Ansible playbooks** desig
 - 🔄 **Update systems**: Keep your systems up-to-date without hassle.
 - 🖥️ **Execute scripts**: Run custom scripts on remote hosts.
 - 🔍 **Check processes**: Ensure critical processes are running.
-- 🧹 **Clean old kernels**: Reclaim disk space by removing outdated kernels.
+- 👤 **Create admin users**: Add users with administrative privileges tailored to different distros.
+- 🗑️ **Delete users**: Remove users completely, along with their files and configurations.
 
 ---
 
 ## **📂 Playbooks Overview**
 
-| Playbook                 | Description                                              |
-|--------------------------|----------------------------------------------------------|
-| `01_manage_packages.yml` | Install and remove packages on Debian, RHEL, and others. |
-| `02_copy_files.yml`      | Automate file transfers to remote hosts.                 |
-| `03_update_hosts.yml`    | Update package caches on Debian, RHEL, and FreeBSD.      |
-| `04_execution_scripts.yml` | Run custom scripts on managed hosts.                   |
-| `05_check_process.yml`   | Check the status of running processes.                   |
+| Playbook                     | Description                                                        |
+|------------------------------|--------------------------------------------------------------------|
+| `01_manage_packages.yml`     | Install and remove packages on Debian, RHEL, and other distros.   |
+| `02_copy_files.yml`          | Automate file transfers to remote hosts.                          |
+| `03_update_hosts.yml`        | Update package caches on Debian, RHEL, and FreeBSD.               |
+| `04_execution_scripts.yml`   | Run custom scripts on managed hosts.                              |
+| `05_check_process.yml`       | Check the status of running processes.                            |
+| `06_create_admin_user.yml`   | Create an admin user (`bos`) with secure password and admin group. |
+| `07_delete_user.yml`         | Remove a user completely (`bos`) and ensure only one admin user.  |
 
 ---
 
@@ -37,7 +40,7 @@ Welcome to **Test Basic Playbooks**, a collection of **Ansible playbooks** desig
    ```
 3. Run any playbook using `ansible-playbook`:
    ```bash
-   ansible-playbook -i inventory 01_manage_packages.yml
+   ansible-playbook -i inventory <playbook_name>.yml
    ```
 
 ---
