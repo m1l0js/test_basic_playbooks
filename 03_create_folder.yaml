@@ -1,8 +1,0 @@
----
-- name: Create test folder
-  hosts: all
-  become: true
-
-  tasks:
-    - name: Create test directory
-      command: mkdir /home/sistema/testeo
