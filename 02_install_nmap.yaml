@@ -1,6 +1,7 @@
 ---
 - name: Install Nmap
   hosts: all
+  become: true
   become_user: sistema
   tasks:
     - name: Install nmap
