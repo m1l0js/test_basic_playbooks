@@ -1,0 +1,8 @@
+---
+- name: Execute scripts
+  hosts: all
+  become: true
+  tasks:
+    - name: Run a script on the system
+      script:
+        cmd: /path/to/script.sh
