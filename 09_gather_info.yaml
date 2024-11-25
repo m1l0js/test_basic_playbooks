@@ -1,0 +1,27 @@
+---
+- name: Gather system information
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: Gather system information
+      ansible.builtin.shell: |
+        echo "Hostname: $(hostname)"
+        echo "Kernel Version: $(uname -r)"
+        echo "Distribution Version: $(cat /etc/os-release | grep PRETTY_NAME | cut -d= -f2 | tr -d '\"')"
+      register: system_info
+
+    - name: Save system information to a file
+      ansible.builtin.copy:
+        content: |
+          Hostname: {{ ansible_hostname }}
+          Kernel Version: {{ ansible_kernel }}
+          Distribution Version: {{ ansible_distribution }} {{ ansible_distribution_version }}
+        dest: /tmp/system_info_{{ inventory_hostname }}.txt
+
+    - name: Consolidate system information
+      ansible.builtin.lineinfile:
+        path: /tmp/consolidated_system_info.txt
+        line: |
+          Host: {{ inventory_hostname }} | Hostname: {{ ansible_hostname }} | Kernel: {{ ansible_kernel }} | Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}
+        create: yes
+        state: present
