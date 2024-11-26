@@ -2,7 +2,7 @@
 - name: Ensure Ansible connects with deprecated SSH algorithms
   hosts: all
   vars:
-    ansible_ssh_extra_args: "-o KexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa"
+    ansible_ssh_extra_args: "-o MACs=hmac-md5,hmac-sha1,hmac-ripemd160,hmac-sha1-96,hmac-md5-96 -o KexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa"
   tasks:
     # Your existing tasks
     - name: Update and upgrade packages on Debian-based systems
