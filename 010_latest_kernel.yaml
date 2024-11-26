@@ -1,0 +1,65 @@
+---
+- name: Set the latest kernel as default
+  hosts: all
+  become: yes
+  tasks:
+    - name: Gather facts
+      ansible.builtin.setup:
+        gather_subset:
+          - "all"
+    
+    - name: Display current kernel version
+      ansible.builtin.shell: uname -r
+      register: current_kernel
+
+    - name: Show available kernels for each system
+      ansible.builtin.shell: |
+        if [ -f /boot/grub2/grub.cfg ] || [ -f /boot/grub/grub.cfg ]; then
+          awk -F"'" '/menuentry / {print $2}' /boot/grub2/grub.cfg /boot/grub/grub.cfg 2>/dev/null
+        elif [ -d /boot ]; then
+          ls /boot | grep vmlinuz
+        else
+          echo "Kernel list unavailable for this system."
+        fi
+      register: available_kernels
+      changed_when: false
+
+    - name: Print available kernels
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} - Available kernels:\n{{ available_kernels.stdout_lines | join('\n') }}"
+
+    - name: Set the latest kernel as default for RHEL, CentOS, Oracle Linux
+      when: ansible_distribution in ['RedHat', 'CentOS', 'OracleLinux']
+      ansible.builtin.shell: |
+        latest_kernel=$(awk -F"'" '/menuentry / {print $2}' /boot/grub2/grub.cfg | head -n 1)
+        grub2-set-default "$(awk -F"'" '/menuentry / {print NR-1, $2}' /boot/grub2/grub.cfg | grep "$latest_kernel" | awk '{print $1}')"
+        grub2-mkconfig -o /boot/grub2/grub.cfg
+      register: set_kernel_rhel
+      changed_when: "'No such file or directory' not in set_kernel_rhel.stderr"
+
+    - name: Set the latest kernel as default for Debian-based systems
+      when: ansible_distribution in ['Debian', 'Ubuntu']
+      ansible.builtin.shell: |
+        latest_kernel=$(ls /boot/vmlinuz-* | sort -V | tail -n 1)
+        update-grub
+      register: set_kernel_debian
+      changed_when: "'No such file or directory' not in set_kernel_debian.stderr"
+
+    - name: Set the latest kernel as default for FreeBSD
+      when: ansible_distribution == "FreeBSD"
+      ansible.builtin.shell: |
+        beadm list | awk '/default/ {print $1}' | xargs beadm activate
+      register: set_kernel_freebsd
+      changed_when: "'No such file or directory' not in set_kernel_freebsd.stderr"
+
+    - name: Set the latest kernel as default for Solaris
+      when: ansible_distribution == "Solaris"
+      ansible.builtin.shell: |
+        bootadm list-menu | awk '/Solaris/{print $1}' | sort -r | head -n 1 | xargs bootadm set-menu
+      register: set_kernel_solaris
+      changed_when: "'No such file or directory' not in set_kernel_solaris.stderr"
+
+    - name: Reboot the server to apply the latest kernel
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+        msg: "Rebooting to apply the latest kernel."
