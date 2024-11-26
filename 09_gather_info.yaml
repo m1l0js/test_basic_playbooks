@@ -3,7 +3,7 @@
   hosts: all
   gather_facts: yes
   vars:
-    ansible_ssh_extra_args: "-o KexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o MACs=hmac-sha1"
+    ansible_ssh_extra_args: "-o KexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -o MACs=hmac-sha1 -o Ciphers=aes256-ctr,aes192-ctr,aes128-ctr"
   tasks:
     - name: Gather system information
       ansible.builtin.shell: |
