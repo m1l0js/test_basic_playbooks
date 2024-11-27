@@ -1,0 +1,103 @@
+---
+- name: Actualizar kernel y gestionar reinicios
+  hosts: all
+  vars:
+    ansible_ssh_extra_args: "-o KexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -o MACs=hmac-sha1"
+  tasks:
+    # Actualizar y actualizar paquetes en sistemas basados en Debian
+    - name: Actualizar y mejorar paquetes en sistemas Debian
+      apt:
+        update_cache: yes
+        upgrade: full
+      when: ansible_facts['os_family'] == "Debian"
+
+    # Actualizar y actualizar paquetes en sistemas basados en RedHat
+    - name: Actualizar y mejorar paquetes en sistemas RedHat
+      yum:
+        name: "*"
+        state: latest
+      when: ansible_facts['os_family'] == "RedHat"
+
+    # Actualizar metadatos y paquetes en sistemas FreeBSD
+    - name: Actualizar metadatos de paquetes en FreeBSD
+      command: pkg update -f
+      when: ansible_facts['os_family'] == "FreeBSD"
+
+    - name: Mejorar paquetes instalados en FreeBSD
+      command: pkg upgrade -y
+      when: ansible_facts['os_family'] == "FreeBSD"
+
+    # Actualizar el kernel a la última versión
+    - name: Instalar la última versión del kernel en Debian
+      apt:
+        name: linux-image-amd64
+        state: latest
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Instalar la última versión del kernel en RedHat
+      yum:
+        name: kernel
+        state: latest
+      when: ansible_facts['os_family'] == "RedHat"
+
+    # Establecer el kernel más nuevo como predeterminado
+    - name: Actualizar GRUB en Debian
+      command: update-grub
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Actualizar GRUB en RedHat
+      command: grub2-mkconfig -o /boot/grub2/grub.cfg
+      when: ansible_facts['os_family'] == "RedHat"
+
+    # Obtener listado de versiones de kernel instaladas
+    - name: Obtener versiones de kernel en Debian
+      shell: dpkg -l 'linux-image-*' | grep '^ii' | awk '{print $2, $3}'
+      register: kernel_versions_debian
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Mostrar versiones de kernel en Debian
+      debug:
+        msg: "{{ kernel_versions_debian.stdout_lines }}"
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Obtener versiones de kernel en RedHat
+      command: rpm -q kernel
+      register: kernel_versions_redhat
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Mostrar versiones de kernel en RedHat
+      debug:
+        msg: "{{ kernel_versions_redhat.stdout_lines }}"
+      when: ansible_facts['os_family'] == "RedHat"
+
+    # Comprobar si se necesita reiniciar
+    - name: Comprobar si se necesita reiniciar en Debian
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required_debian
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Comprobar si se necesita reiniciar en RedHat
+      shell: needs-restarting -r; echo $?
+      register: reboot_required_redhat
+      when: ansible_facts['os_family'] == "RedHat"
+
+    # Establecer variable si se necesita reiniciar
+    - name: Establecer variable de reinicio en Debian
+      set_fact:
+        reboot_needed: true
+      when: ansible_facts['os_family'] == "Debian" and reboot_required_debian.stat.exists
+
+    - name: Establecer variable de reinicio en RedHat
+      set_fact:
+        reboot_needed: true
+      when: ansible_facts['os_family'] == "RedHat" and reboot_required_redhat.stdout.strip() == "1"
+
+    # Programar reinicio en 2 horas si es necesario
+    - name: Programar reinicio en 2 horas si es necesario
+      at:
+        command: /sbin/shutdown -r now
+        count: 1
+        units: hours
+        time: 2
+      when: reboot_needed is defined and reboot_needed
