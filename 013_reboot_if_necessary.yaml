@@ -1,0 +1,35 @@
+---
+- name: Check if reboot is required
+  hosts: all
+    vars:
+    ansible_ssh_extra_args: "-o KexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -o MACs=hmac-sha1"
+  tasks:
+    - name: Check for reboot-required file on Debian/Ubuntu
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_file
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Check for services requiring restart on RedHat-based systems
+      command: needs-restarting
+      register: reboot_services
+      failed_when: false  # Prevent failure if the command doesn't exist
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Determine if reboot is required
+      set_fact:
+        reboot_required: >-
+          {{
+            (ansible_facts['os_family'] == "Debian" and reboot_file.stat.exists) or
+            (ansible_facts['os_family'] == "RedHat" and reboot_services.rc != 0)
+          }}
+
+    - name: Print if reboot is required
+      debug:
+        msg: "Reboot is required on this host!"
+      when: reboot_required
+
+    - name: Print if no reboot is required
+      debug:
+        msg: "No reboot is required on this host."
+      when: not reboot_required
