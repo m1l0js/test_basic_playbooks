@@ -1,0 +1,105 @@
+---
+- name: Ensure Ansible connects with deprecated SSH algorithms
+  hosts: all
+  gather_facts: true
+  vars:
+    ansible_ssh_extra_args: "-o KexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -o MACs=hmac-sha1"
+  tasks:
+    - name: Ensure apt package cache is updated
+      apt:
+        update_cache: yes
+      when: ansible_facts['os_family'] == "Debian"
+      ignore_errors: yes  # Ignorar errores en caso de fallos de repositorios
+
+    - name: Disable problematic repositories temporarily if apt update fails
+      block:
+        - name: Check for failed repositories in apt logs
+          shell: |
+            grep -E 'NO_PUBKEY|The repository is not signed|Failed to fetch' /var/log/apt/term.log
+          register: apt_log_errors
+          failed_when: false
+
+        - name: Temporarily disable problematic repositories
+          lineinfile:
+            path: "/etc/apt/sources.list.d/{{ item }}"
+            regexp: '^(deb|deb-src)'
+            line: "# {{ item }}"
+          with_items: "{{ apt_log_errors.stdout_lines | map('extract', '(?<=/etc/apt/sources.list.d/)([^:]+)') }}"
+          when: apt_log_errors.stdout != ""
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Attempt apt update again after disabling problematic repositories
+      apt:
+        update_cache: yes
+      when: ansible_facts['os_family'] == "Debian"
+      ignore_errors: yes
+
+    - name: Upgrade packages
+      apt:
+        upgrade: full
+      when: ansible_facts['os_family'] == "Debian"
+      ignore_errors: yes
+
+    - name: Enable previously disabled repositories
+      lineinfile:
+        path: "/etc/apt/sources.list.d/{{ item }}"
+        regexp: '^# (deb|deb-src)'
+        line: "{{ item }}"
+      with_items: "{{ apt_log_errors.stdout_lines | map('extract', '(?<=/etc/apt/sources.list.d/)([^:]+)') }}"
+      when:
+        - ansible_facts['os_family'] == "Debian"
+        - apt_log_errors is defined and apt_log_errors.stdout != ""
+
+    - name: Ensure package metadata is updated on RedHat-based systems
+      yum:
+        name: "*"
+        state: latest
+      when: ansible_facts['os_family'] == "RedHat"
+      ignore_errors: yes
+
+    - name: Update package metadata on FreeBSD systems
+      command: pkg update -f
+      when: ansible_facts['os_family'] == "FreeBSD"
+      ignore_errors: yes
+
+    - name: Upgrade installed packages on FreeBSD systems
+      command: pkg upgrade -y
+      when: ansible_facts['os_family'] == "FreeBSD"
+      ignore_errors: yes
+      
+    - name: Ensure yum-utils is installed on RedHat-based systems
+      yum:
+        name: yum-utils
+        state: present
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Check for reboot-required file on Debian/Ubuntu
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_file
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Check for services requiring restart on RedHat-based systems
+      command: needs-restarting
+      register: reboot_services
+      failed_when: false  # Prevent failure if needs-restarting doesn't exist
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Determine if reboot is required
+      set_fact:
+        reboot_required: >-
+          {{
+            (ansible_facts['os_family'] == "Debian" and reboot_file.stat.exists) or
+            (ansible_facts['os_family'] == "RedHat" and reboot_services.rc != 0) or
+            (ansible_facts['os_family'] not in ["Debian", "RedHat"] and "Reboot" in ansible_facts['cmdline'])
+          }}
+
+    - name: Print if reboot is required
+      debug:
+        msg: "Reboot is required on this host!"
+      when: reboot_required
+
+    - name: Print if no reboot is required
+      debug:
+        msg: "No reboot is required on this host."
+      when: not reboot_required
