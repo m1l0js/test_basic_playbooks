@@ -1,7 +1,7 @@
 ---
 - name: Check if reboot is required
   hosts: all
-    vars:
+  vars:
     ansible_ssh_extra_args: "-o KexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -o MACs=hmac-sha1"
   tasks:
     - name: Check for reboot-required file on Debian/Ubuntu
