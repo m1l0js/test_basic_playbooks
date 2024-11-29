@@ -103,3 +103,9 @@
       debug:
         msg: "No reboot is required on this host."
       when: not reboot_required
+
+    - name: Reboot the system
+      reboot:
+        msg: "Rebooting system as required by updates or configuration changes."
+        reboot_timeout: 300
+      when: reboot_required
