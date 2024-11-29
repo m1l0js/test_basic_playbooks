@@ -4,41 +4,64 @@
   vars:
     ansible_ssh_extra_args: "-o KexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -o MACs=hmac-sha1"
   tasks:
-    - name: Remove lines containing bullseye/updates from debian-security.list
-      lineinfile:
-        path: /etc/apt/sources.list.d/debian-security.list
-        regexp: 'bullseye/updates'
-        state: absent
-      when: ansible_facts['os_family'] == "Debian"
-
-    - name: Ensure only bullseye-security lines are present in debian-security.list
-      lineinfile:
-        path: /etc/apt/sources.list.d/debian-security.list
-        regexp: '^deb .* bullseye-security '
-        line: 'deb http://sv0105.ced.junta-andalucia.es/debian-security bullseye-security main contrib non-free'
-        state: present
-      when: ansible_facts['os_family'] == "Debian"
-
-    - name: Ensure changes are applied to apt package cache
-      command: apt-get update
-      when: ansible_facts['os_family'] == "Debian"
-
-    - name: Update and upgrade packages on Debian-based systems
+    - name: Ensure apt package cache is updated
       apt:
         update_cache: yes
-        upgrade: full
+      when: ansible_facts['os_family'] == "Debian"
+      ignore_errors: yes  # Ignorar errores en caso de fallos de repositorios
+
+    - name: Disable problematic repositories temporarily if apt update fails
+      block:
+        - name: Check for failed repositories in apt logs
+          shell: |
+            grep -E 'NO_PUBKEY|The repository is not signed|Failed to fetch' /var/log/apt/term.log
+          register: apt_log_errors
+          failed_when: false
+
+        - name: Temporarily disable problematic repositories
+          lineinfile:
+            path: "/etc/apt/sources.list.d/{{ item }}"
+            regexp: '^(deb|deb-src)'
+            line: "# {{ item }}"
+          with_items: "{{ apt_log_errors.stdout_lines | map('extract', '(?<=/etc/apt/sources.list.d/)([^:]+)') }}"
+          when: apt_log_errors.stdout != ""
       when: ansible_facts['os_family'] == "Debian"
 
-    - name: Update and upgrade packages on RedHat-based systems
+    - name: Attempt apt update again after disabling problematic repositories
+      apt:
+        update_cache: yes
+      when: ansible_facts['os_family'] == "Debian"
+      ignore_errors: yes
+
+    - name: Upgrade packages
+      apt:
+        upgrade: full
+      when: ansible_facts['os_family'] == "Debian"
+      ignore_errors: yes
+
+    - name: Enable previously disabled repositories
+      lineinfile:
+        path: "/etc/apt/sources.list.d/{{ item }}"
+        regexp: '^# (deb|deb-src)'
+        line: "{{ item }}"
+      with_items: "{{ apt_log_errors.stdout_lines | map('extract', '(?<=/etc/apt/sources.list.d/)([^:]+)') }}"
+      when:
+        - ansible_facts['os_family'] == "Debian"
+        - apt_log_errors is defined and apt_log_errors.stdout != ""
+
+    - name: Ensure package metadata is updated on RedHat-based systems
       yum:
         name: "*"
         state: latest
       when: ansible_facts['os_family'] == "RedHat"
+      ignore_errors: yes
 
     - name: Update package metadata on FreeBSD systems
       command: pkg update -f
       when: ansible_facts['os_family'] == "FreeBSD"
+      ignore_errors: yes
 
     - name: Upgrade installed packages on FreeBSD systems
       command: pkg upgrade -y
       when: ansible_facts['os_family'] == "FreeBSD"
+      ignore_errors: yes
