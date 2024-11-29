@@ -1,0 +1,39 @@
+---
+- name: Ensure Ansible connects with deprecated SSH algorithms
+  hosts: all
+  vars:
+    ansible_ssh_extra_args: "-o KexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -o MACs=hmac-sha1"
+  tasks:
+    - name: Modify debian-security.list to replace bullseye/security with bullseye-security
+      lineinfile:
+        path: /etc/apt/sources.list.d/debian-security.list
+        regexp: 'bullseye/security'
+        line: 'deb http://sv0105.ced.junta-andalucia.es/debian-security bullseye-security main contrib non-free'
+        state: present
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Ensure changes are applied to apt package cache
+      command: apt-get update
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Update and upgrade packages on Debian-based systems
+      apt:
+        update_cache: yes
+        upgrade: full
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Update and upgrade packages on RedHat-based systems
+      yum:
+        name: "*"
+        state: latest
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Update package metadata on FreeBSD systems
+      command: pkg update -f
+      when: ansible_facts['os_family'] == "FreeBSD"
+
+    - name: Upgrade installed packages on FreeBSD systems
+      command: pkg upgrade -y
+      when: ansible_facts['os_family'] == "FreeBSD"
+
+
