@@ -1,0 +1,120 @@
+---
+- name: Remove older kernels, keeping only the two most recent
+  hosts: all
+  gather_facts: true
+  vars:
+    ansible_ssh_extra_args: "-o KexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -o MACs=hmac-sha1"
+  tasks:
+
+    - name: Collect package facts
+      package_facts:
+        manager: auto
+
+    - name: Get running kernel version
+      shell: uname -r
+      register: running_kernel
+
+    - name: Process for Debian-based systems
+      block:
+
+        - name: Get list of installed kernels
+          shell: dpkg -l 'linux-image-[0-9]*' | awk '/^ii/{print $2}'
+          register: debian_kernels
+
+        - name: Remove 'linux-image-' prefix from package names
+          set_fact:
+            kernel_versions: "{{ debian_kernels.stdout_lines | map('regex_replace', '^linux-image-', '') | list }}"
+
+        - name: Exclude the running kernel from the list
+          set_fact:
+            other_kernels: "{{ kernel_versions | difference([running_kernel.stdout]) }}"
+
+        - name: Sort kernels and select kernels to keep
+          set_fact:
+            kernels_to_keep: "{{ [running_kernel.stdout] + (other_kernels | sort(reverse=True) | list)[:1] }}"
+
+        - name: Prepare list of kernels to remove
+          set_fact:
+            kernels_to_remove: "{{ kernel_versions | difference(kernels_to_keep) }}"
+
+        - name: Re-add 'linux-image-' prefix to kernels to remove
+          set_fact:
+            kernels_to_remove: "{{ kernels_to_remove | map('regex_replace', '^(.*)', 'linux-image-\\1') | list }}"
+
+        - name: Remove older kernels
+          apt:
+            name: "{{ item }}"
+            state: absent
+            purge: yes
+          loop: "{{ kernels_to_remove }}"
+          when: kernels_to_remove | length > 0
+
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Process for RedHat-based systems
+      block:
+
+        - name: Get list of installed kernels
+          shell: rpm -q kernel | grep -v 'debug\|devel'
+          register: redhat_kernels
+
+        - name: Remove 'kernel-' prefix from package names
+          set_fact:
+            kernel_versions: "{{ redhat_kernels.stdout_lines | map('regex_replace', '^kernel-', '') | list }}"
+
+        - name: Exclude the running kernel from the list
+          set_fact:
+            other_kernels: "{{ kernel_versions | difference([running_kernel.stdout]) }}"
+
+        - name: Sort kernels and select kernels to keep
+          set_fact:
+            kernels_to_keep: "{{ [running_kernel.stdout] + (other_kernels | sort(reverse=True) | list)[:1] }}"
+
+        - name: Prepare list of kernels to remove
+          set_fact:
+            kernels_to_remove: "{{ kernel_versions | difference(kernels_to_keep) }}"
+
+        - name: Re-add 'kernel-' prefix to kernels to remove
+          set_fact:
+            kernels_to_remove: "{{ kernels_to_remove | map('regex_replace', '^(.*)', 'kernel-\\1') | list }}"
+
+        - name: Remove older kernels
+          yum:
+            name: "{{ item }}"
+            state: absent
+          loop: "{{ kernels_to_remove }}"
+          when: kernels_to_remove | length > 0
+
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Process for FreeBSD systems
+      block:
+
+        - name: List installed kernels
+          shell: ls /boot/kernel.*
+          register: freebsd_kernels
+
+        - name: Extract kernel versions
+          set_fact:
+            kernel_versions: "{{ freebsd_kernels.stdout_lines | map('basename') | map('regex_replace', '^kernel.', '') | list }}"
+
+        - name: Exclude the running kernel from the list
+          set_fact:
+            other_kernels: "{{ kernel_versions | difference([running_kernel.stdout]) }}"
+
+        - name: Sort kernels and select kernels to keep
+          set_fact:
+            kernels_to_keep: "{{ [running_kernel.stdout] + (other_kernels | sort(reverse=True) | list)[:1] }}"
+
+        - name: Prepare list of kernels to remove
+          set_fact:
+            kernels_to_remove: "{{ kernel_versions | difference(kernels_to_keep) }}"
+
+        - name: Remove older kernels
+          file:
+            path: "/boot/kernel.{{ item }}"
+            state: absent
+          loop: "{{ kernels_to_remove }}"
+          when: kernels_to_remove | length > 0
+
+      when: ansible_facts['os_family'] == "FreeBSD"
