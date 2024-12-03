@@ -1,10 +1,12 @@
 ---
 - name: Create user bos and add to appropriate admin group
   hosts: all
+  vars:
+    ansible_ssh_extra_args: "-o KexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -o MACs=hmac-sha1"
   become: true
   vars:
     username: bos
-    password: "{{ 'supertest' | password_hash('sha512') }}"
+    password: "{{ lookup('env', 'BOS_PASSWORD') | password_hash('sha512') }}"
   tasks:
     - name: Install sudo if not present (Debian-based systems)
       apt:
@@ -40,29 +42,29 @@
         append: true
       when: ansible_facts['os_family'] == "FreeBSD"
 
-    - name: Ensure the wheel group has sudo privileges on RedHat-based systems
-      lineinfile:
-        path: /etc/sudoers
-        state: present
-        regexp: '^%wheel'
-        line: '%wheel ALL=(ALL) NOPASSWD: ALL'
-        validate: 'visudo -cf %s'
-      when: ansible_facts['os_family'] == "RedHat"
+#    - name: Ensure the wheel group has sudo privileges on RedHat-based systems
+ #     lineinfile:
+  #      path: /etc/sudoers
+   #     state: present
+    #    regexp: '^%wheel'
+     #   line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+      #  validate: 'visudo -cf %s'
+      #when: ansible_facts['os_family'] == "RedHat"
 
-    - name: Ensure the sudo group has sudo privileges on Debian-based systems
-      lineinfile:
-        path: /etc/sudoers
-        state: present
-        regexp: '^%sudo'
-        line: '%sudo ALL=(ALL) NOPASSWD: ALL'
-        validate: 'visudo -cf %s'
-      when: ansible_facts['os_family'] == "Debian"
+#    - name: Ensure the sudo group has sudo privileges on Debian-based systems
+ #     lineinfile:
+  #      path: /etc/sudoers
+   #     state: present
+    #    regexp: '^%sudo'
+     #   line: '%sudo ALL=(ALL) NOPASSWD: ALL'
+      #  validate: 'visudo -cf %s'
+      #when: ansible_facts['os_family'] == "Debian"
 
-    - name: Ensure the wheel group has sudo privileges on FreeBSD
-      lineinfile:
-        path: /usr/local/etc/sudoers
-        state: present
-        regexp: '^%wheel'
-        line: '%wheel ALL=(ALL) NOPASSWD: ALL'
-        validate: 'visudo -cf %s'
-      when: ansible_facts['os_family'] == "FreeBSD"
+    #- name: Ensure the wheel group has sudo privileges on FreeBSD
+     # lineinfile:
+      #  path: /usr/local/etc/sudoers
+       # state: present
+        #regexp: '^%wheel'
+        #line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+        #validate: 'visudo -cf %s'
+      #when: ansible_facts['os_family'] == "FreeBSD"
